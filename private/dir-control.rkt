@@ -6,7 +6,8 @@
 
 (require racket/gui/base
          racket/class
-         racket/list)
+         racket/list
+         "canvas-background.rkt")
 (provide dir-control% path-alist)
 ;;
 
@@ -32,8 +33,8 @@
     (super-new)))
 
 (define dir-control%
-  (class canvas%
-    (inherit refresh get-dc popup-menu set-canvas-background
+  (class canvas-background%
+    (inherit refresh get-dc popup-menu
               init-auto-scrollbars get-view-start)
     
     (init [callback (λ (ce e)
@@ -41,6 +42,14 @@
                                          (get-field path-index e)))
                       (flush-output))])
     (init-field [highlighted "orange"])
+    (define text-color "black")
+    (define path-element-background "Gainsboro")
+    (use-from-color-scheme
+     'framework:default-text-color
+     (λ (v) (set! text-color v)))
+    (use-from-color-scheme
+     'framework:paren-match-color
+     (λ (v) (set! path-element-background v)))
     (define need-resize? #t)
     (define path-elements '()) ; alist ordered list of ordered pairs
     (define path-index #f)
@@ -69,9 +78,11 @@
       (send dc set-origin 0 5)
       (define old-brush (send dc get-brush))
       (define old-pen (send dc get-pen))
+      (define old-text-foreground (send dc get-text-foreground))
 
-      (send dc set-brush "silver" 'solid)
-      (send dc set-pen "black" 1 'solid)
+      (send dc set-brush path-element-background 'solid)
+      (send dc set-pen text-color 1 'solid)
+      (send dc set-text-foreground text-color)
 
       (for/fold ([xoffset 0]
                  #:result (when need-resize?
@@ -99,7 +110,7 @@
          (cond [(and (<= xoffset (send mouse-pos get-x) (+ xoffset width 10))
                      (<= 0 (send mouse-pos get-y) (* 1.2 font-height)))
                 (set! path-index i) highlighted]
-               [else "Gainsboro"]))
+               [else path-element-background]))
         (cond
           [(= xoffset 0)
            (send dc draw-text label (+ xoffset left-margin) 0)
@@ -108,11 +119,11 @@
            (send dc draw-text label (+ xoffset left-margin) 0)
            (+ xoffset gap width)]))
       (send dc set-brush old-brush)
-      (send dc set-pen old-pen))
+      (send dc set-pen old-pen)
+      (send dc set-text-foreground old-text-foreground))
     
     (super-new [style '(hscroll)][stretchable-height #f][min-height 45])
     
-    (set-canvas-background (make-object color% "WhiteSmoke"))
     (define (select-action mouse-xpos)
       (callback this (new dir-control-event% [path-index path-index])))
     
